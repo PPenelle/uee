@@ -36,7 +36,7 @@ INSTALLATION
 
 Clone the repository:
 
-git clone https://github.com/YOURUSERNAME/uee.git
+git clone https://github.com/PPENELLE/uee.git
 
 Requires:
 - numpy
