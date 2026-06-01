@@ -50,7 +50,7 @@ class UEEResults:
     ssr : float
         Sum of squared residuals.
     active_set : ndarray
-    Indices of binding observations (|r_t| = E*), identified using
+    Indices of binding observations (|u_t| = E*), identified using
     a scale-aware tolerance to ensure robustness to numerical precision.
     dual_weights : ndarray
         Raw dual weights.
@@ -65,36 +65,30 @@ class UEEResults:
         self.resid = residuals
         self.fittedvalues = X @ beta
         self.max_abs_error = float(E)
-
-        self.n, self.k = X.shape
+        self.n, self.m = X.shape
         self.abs_resid = np.abs(residuals)
         self.ssr = float(np.sum(residuals**2))
-
         # Active set
         # Active set (scale-aware tolerance)
         tol = 1e-6 * max(1.0, abs(E))
-        
         self.active_set = np.where(
             np.abs(self.abs_resid - E) <= tol
         )[0]
         self.n_active = len(self.active_set)
-
         # Alternation condition
         if self.n_active > 0:
             s = np.sign(residuals[self.active_set])
             self.alternation = (np.any(s > 0) and np.any(s < 0))
         else:
             self.alternation = False
-
         # Rank condition
         try:
-            if self.n_active >= self.k:
+            if self.n_active >= self.m:
                 self.rank_active = np.linalg.matrix_rank(X[self.active_set])
             else:
                 self.rank_active = 0
         except Exception:
             self.rank_active = None
-
         self._compute_dual(lp_result)
         self._compute_influence_bounds()
 
@@ -174,12 +168,12 @@ class UEE:
         if X.ndim == 1:
             X = X.reshape(-1, 1)
 
-        n, k = X.shape
+        n, m = X.shape
 
         if len(y) != n:
             raise ValueError("Mismatch between X and y")
 
-        if n < k + 1:
+        if n < m + 1:
             raise ValueError("Underidentified model")
 
         if np.any(np.isnan(X)) or np.any(np.isnan(y)):
@@ -187,10 +181,10 @@ class UEE:
 
         if self.fit_intercept:
             X = np.column_stack([np.ones(n), X])
-            k += 1
+            m += 1
 
         # LP setup
-        n_vars = k + 1
+        n_vars = m + 1
         c = np.zeros(n_vars)
         c[-1] = 1.0
 
@@ -214,7 +208,7 @@ class UEE:
             A.append(row2)
             b.append(-y[t])
 
-        bounds = [(None, None)] * k + [(0, None)]
+        bounds = [(None, None)] * m + [(0, None)]
 
         res = linprog(
             c,
