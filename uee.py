@@ -5,17 +5,16 @@ UEE: Uniform Error Estimator (Minimax Regression)
 -------------------------------------------------------------------------------
 Author: Philippe G. Penelle, Ph.D.
 License: MIT
-Version: 1.0.0
+Version: 1.0.1
+NOTE:
+# Active set identification requires a scale-aware tolerance.
+# Fixed in v1.0.1 to ensure robustness to solver precision.
 ===============================================================================
-
 This module implements the Uniform Error Estimator (UEE), an extended version
 of classical Chebyshev (minimax) regression:
-
     min_β max_t |y_t - X_t β|
-
 The implementation includes structural diagnostics (active set, dual weights,
 alternation), robustness metrics, and bootstrap inference.
-
 -------------------------------------------------------------------------------
 LICENSE (MIT)
 -------------------------------------------------------------------------------
@@ -24,17 +23,13 @@ of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software.
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
 ===============================================================================
 """
-
 import numpy as np
 from scipy.optimize import linprog
-
 # =============================================================================
 # RESULTS OBJECT
 # =============================================================================
@@ -55,7 +50,8 @@ class UEEResults:
     ssr : float
         Sum of squared residuals.
     active_set : ndarray
-        Indices of binding observations.
+    Indices of binding observations (|r_t| = E*), identified using
+    a scale-aware tolerance to ensure robustness to numerical precision.
     dual_weights : ndarray
         Raw dual weights.
     dual_weights_norm : ndarray
@@ -63,7 +59,6 @@ class UEEResults:
     influence_bounds : ndarray
         Sensitivity / influence measure.
     """
-
     def __init__(self, beta, E, residuals, X, lp_result):
 
         self.params = beta
@@ -76,9 +71,11 @@ class UEEResults:
         self.ssr = float(np.sum(residuals**2))
 
         # Active set
-        tol = 1e-6
+        # Active set (scale-aware tolerance)
+        tol = 1e-6 * max(1.0, abs(E))
+        
         self.active_set = np.where(
-            np.isclose(self.abs_resid, E, atol=tol)
+            np.abs(self.abs_resid - E) <= tol
         )[0]
         self.n_active = len(self.active_set)
 
@@ -129,7 +126,6 @@ class UEEResults:
             return
 
         self.influence_bounds = self.dual_weights_norm.copy()
-
 # =============================================================================
 # MAIN ESTIMATOR
 # =============================================================================
