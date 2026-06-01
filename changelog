@@ -1,0 +1,17 @@
+Change Log.
+==================================================================================================================
+v.1.0.1. 2026-06-01. No change to API.
+Corrected active set identification in UEEResults.
+The previous implementation (v1.0.0) used a fixed absolute tolerance:
+    np.isclose(abs_resid, E, atol=1e-6)
+This is not scale-invariant and may misidentify binding constraints.
+Updated to:
+      tol = 1e-6 * max(1.0, abs(E))
+      abs(abs_resid - E) <= tol
+This ensures numerically stable and theoretically consistent
+identification of the active set.
+Notes:
+- No changes to API;
+- No changes to estimator;
+- Diagnostics may differ slightly across datasets.
+==================================================================================================================
